@@ -25,10 +25,10 @@ func TestPostForm(t *testing.T) {
 	headers := Headers{
 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.146 Safari/537.36",
 	}
-	params := Data{
+	data := Data{
 		"key": "value",
 	}
-	response, err := Get(url, params, headers)
+	response, err := Get(url, data, headers)
 	if err != nil{
 		t.Log(err)
 	}else{
@@ -41,10 +41,10 @@ func TestPostJson(t *testing.T) {
 	headers := Headers{
 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.146 Safari/537.36",
 	}
-	params := Json{
+	json := Json{
 		"key": "value",
 	}
-	response, err := Get(url, params, headers)
+	response, err := Get(url, json, headers)
 	if err != nil{
 		t.Log(err)
 	}else{
