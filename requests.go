@@ -37,7 +37,7 @@ type Request struct {
 	Verify         Verify
 	AllowRedirects AllowRedirects
 
-	//Client *http.Client
+	client *http.Client
 	//cookies []*http.Cookie
 }
 
@@ -48,8 +48,7 @@ type Response struct {
 	Text    string
 }
 
-func newClient(verify Verify, allowRedirects AllowRedirects, timeout time.Duration, cookie http.CookieJar,
-	proxies map[string]string) *http.Client {
+func newClient(verify Verify, allowRedirects AllowRedirects, timeout time.Duration, proxies map[string]string) *http.Client {
 	client := &http.Client{}
 	tr := &http.Transport{}
 	if verify == true {
@@ -66,11 +65,14 @@ func newClient(verify Verify, allowRedirects AllowRedirects, timeout time.Durati
 		}
 	}
 	client.Timeout = timeout
-	client.Jar = cookie
 	return client
 }
 
-func setCookie(u *url.URL, c map[string]string) *cookiejar.Jar {
+func (request *Request)setCookie(requestUrl string, c map[string]string)  {
+	u, err := url.Parse(requestUrl)
+	if err != nil {
+		return
+	}
 	cookie, _ := cookiejar.New(nil)
 	cookieList := make([]*http.Cookie, 0)
 	for k, v := range c {
@@ -82,7 +84,7 @@ func setCookie(u *url.URL, c map[string]string) *cookiejar.Jar {
 		cookieList = append(cookieList, httpCookie)
 	}
 	cookie.SetCookies(u, cookieList)
-	return cookie
+	request.client.Jar = cookie
 }
 
 func (request *Request) parseArgs(args ...interface{}) {
@@ -115,13 +117,12 @@ func (request *Request) baseSend(requestUrl, method string, args ...interface{})
 	var err error
 	request.Url = requestUrl
 	request.Method = method
-	u, err := url.Parse(requestUrl)
-	if err != nil {
-		return nil, err
+	if request.client == nil{
+		request.parseArgs(args...)
+		client := newClient(request.Verify, request.AllowRedirects, request.Timeout, request.Proxies)
+		request.client = client
 	}
-	request.parseArgs(args...)
-	cookies := setCookie(u, request.Cookie)
-	client := newClient(request.Verify, request.AllowRedirects, request.Timeout, cookies, request.Proxies)
+	request.setCookie(requestUrl, request.Cookie)
 	requestUrl, err = buildURLParams(requestUrl, request.Params)
 	if err != nil {
 		return nil, err
@@ -148,7 +149,7 @@ func (request *Request) baseSend(requestUrl, method string, args ...interface{})
 	for key, value := range request.Headers {
 		httpReq.Header.Add(key, value)
 	}
-	resp, err := client.Do(httpReq)
+	resp, err := request.client.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -241,20 +242,6 @@ func (resp *Response) setText() string {
 	if resp.Content == nil {
 		resp.setContent()
 	}
-	//var err error
-	//var encodeCode = []string{"GBK", "GB18030"}
-	//for _, v := range encodeCode {
-	//	resp.Text, err = Encode(v, resp.Content)
-	//	if err != nil {
-	//		resp.Text = ""
-	//		continue
-	//	}else{
-	//		break
-	//	}
-	//}
-	//if resp.Text == "" {
-	//	resp.Text = string(resp.Content)
-	//}
 	resp.Text = string(resp.Content)
 	return resp.Text
 }
