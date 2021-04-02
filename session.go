@@ -16,7 +16,10 @@ func (session *Session) Get(requestUrl string, args ...interface{}) (*Response, 
 	if err != nil {
 		return nil, err
 	}
-	cookies := resp.R.Cookies()
+	if session.Cookie == nil{
+		session.Cookie = make(map[string]string)
+	}
+	cookies := resp.Cookie
 	for _, cook := range cookies {
 		session.Cookie[cook.Name] = cook.Value
 	}
@@ -28,7 +31,10 @@ func (session *Session) Post(requestUrl string, args ...interface{}) (*Response,
 	if err != nil {
 		return nil, err
 	}
-	cookies := resp.R.Cookies()
+	if session.Cookie == nil{
+		session.Cookie = make(map[string]string)
+	}
+	cookies := resp.Cookie
 	for _, cook := range cookies {
 		session.Cookie[cook.Name] = cook.Value
 	}

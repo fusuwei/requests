@@ -43,6 +43,7 @@ type Request struct {
 
 type Response struct {
 	R       *http.Response
+	Cookie  []*http.Cookie
 	Request *Request
 	Content []byte
 	Text    string
@@ -117,8 +118,8 @@ func (request *Request) baseSend(requestUrl, method string, args ...interface{})
 	var err error
 	request.Url = requestUrl
 	request.Method = method
+	request.parseArgs(args...)
 	if request.client == nil{
-		request.parseArgs(args...)
 		client := newClient(request.Verify, request.AllowRedirects, request.Timeout, request.Proxies)
 		request.client = client
 	}
@@ -134,7 +135,7 @@ func (request *Request) baseSend(requestUrl, method string, args ...interface{})
 	case "POST":
 		if request.Data != nil {
 			body := buildForms(request.Data)
-			httpReq, err = http.NewRequest("POST", requestUrl, bytes.NewBuffer(body))
+			httpReq, err = http.NewRequest("POST", requestUrl, body)
 			request.Headers["Content-Type"] = "application/x-www-form-urlencoded"
 		} else if request.Json != nil {
 			jsonStr, _ := json.Marshal(request.Json)
@@ -155,6 +156,7 @@ func (request *Request) baseSend(requestUrl, method string, args ...interface{})
 	}
 	response := &Response{}
 	response.R = resp
+	response.Cookie = request.client.Jar.Cookies(httpReq.URL)
 	response.Content = response.setContent()
 	response.Text = response.setText()
 	return response, nil
@@ -195,12 +197,13 @@ func addQueryParams(parsedURL *url.URL, parsedQuery url.Values) string {
 	return strings.Replace(parsedURL.String(), "?"+parsedURL.RawQuery, "", -1)
 }
 
-func buildForms(m map[string]string) []byte {
-	var str string
+func buildForms(m map[string]string) *strings.Reader {
+	postValue := url.Values{}
 	for k, v := range m {
-		str += k + "=" + v
+		postValue.Add(k,  v)
 	}
-	return []byte(str)
+	postString := postValue.Encode()
+	return  strings.NewReader(postString)
 }
 
 func setProxy(proxies map[string]string) *url.URL {
