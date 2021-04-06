@@ -43,7 +43,7 @@ type Request struct {
 
 type Response struct {
 	R       *http.Response
-	Cookie  []*http.Cookie
+	Cookie  http.CookieJar
 	Request *Request
 	Content []byte
 	Text    string
@@ -70,22 +70,28 @@ func newClient(verify Verify, allowRedirects AllowRedirects, timeout time.Durati
 }
 
 func (request *Request)setCookie(requestUrl string, c map[string]string)  {
+	cookie, _ := cookiejar.New(nil)
+	cookieList := make([]*http.Cookie, 0)
 	u, err := url.Parse(requestUrl)
 	if err != nil {
 		return
 	}
-	cookie, _ := cookiejar.New(nil)
-	cookieList := make([]*http.Cookie, 0)
-	for k, v := range c {
-		httpCookie := &http.Cookie{
-			Name:     k,
-			Value:    v,
-			HttpOnly: false,
-		}
-		cookieList = append(cookieList, httpCookie)
+	if request.client.Jar == nil{
+		cookie.SetCookies(u, cookieList)
+		request.client.Jar = cookie
 	}
-	cookie.SetCookies(u, cookieList)
-	request.client.Jar = cookie
+	if c != nil{
+		for k, v := range c {
+			httpCookie := &http.Cookie{
+				Name:     k,
+				Value:    v,
+				HttpOnly: false,
+			}
+			cookieList = append(cookieList, httpCookie)
+		}
+		cookie.SetCookies(u, cookieList)
+		request.client.Jar = cookie
+	}
 }
 
 func (request *Request) parseArgs(args ...interface{}) {
@@ -118,12 +124,16 @@ func (request *Request) baseSend(requestUrl, method string, args ...interface{})
 	var err error
 	request.Url = requestUrl
 	request.Method = method
+	if request.Headers == nil{
+		request.Headers = make(map[string]string)
+	}
 	request.parseArgs(args...)
 	if request.client == nil{
 		client := newClient(request.Verify, request.AllowRedirects, request.Timeout, request.Proxies)
 		request.client = client
 	}
 	request.setCookie(requestUrl, request.Cookie)
+
 	requestUrl, err = buildURLParams(requestUrl, request.Params)
 	if err != nil {
 		return nil, err
@@ -156,7 +166,7 @@ func (request *Request) baseSend(requestUrl, method string, args ...interface{})
 	}
 	response := &Response{}
 	response.R = resp
-	response.Cookie = request.client.Jar.Cookies(httpReq.URL)
+	response.Cookie = request.client.Jar
 	response.Content = response.setContent()
 	response.Text = response.setText()
 	return response, nil
