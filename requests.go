@@ -52,9 +52,7 @@ type Response struct {
 func newClient(verify Verify, allowRedirects AllowRedirects, timeout time.Duration, proxies map[string]string) *http.Client {
 	client := &http.Client{}
 	tr := &http.Transport{}
-	if verify == true {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
+	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	proxy := setProxy(proxies)
 	if proxy != nil {
 		tr.Proxy = http.ProxyURL(proxy)
